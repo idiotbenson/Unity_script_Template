@@ -1,7 +1,6 @@
-﻿using System.Collections;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.Serialization;
-using Votanic.vXR.vCast;
 
 public class PlayAnimations : MonoBehaviour
 {
@@ -11,10 +10,9 @@ public class PlayAnimations : MonoBehaviour
     [SerializeField] private float animSpeed = 1f;
     [FormerlySerializedAs("AnimDelay")]
     [SerializeField] private bool animDelay;
-    [SerializeField] private bool fade;
+    [SerializeField] private bool useUnscaledDelay;
     [FormerlySerializedAs("AnimDelayTime")]
     [SerializeField] private float animDelayTime;
-    [SerializeField] private vCast_Fader fader;
     [SerializeField] private Animation targetAnimation;
     [SerializeField] private AnimationEvent animationEventHandler;
     [SerializeField] private bool verboseLog;
@@ -42,19 +40,12 @@ public class PlayAnimations : MonoBehaviour
     {
         CacheAnimationIfMissing();
         CacheAnimationEventIfMissing();
-
-        if (fader == null)
-        {
-            GameObject faderObject = GameObject.Find("CameraFader");
-            if (faderObject != null)
-            {
-                fader = faderObject.GetComponent<vCast_Fader>();
-            }
-        }
     }
 
     public void TriggerAnimation()
     {
+        StopDelayedCoroutine();
+
         if (playAnimObject == null)
         {
             Debug.LogWarning("PlayAnimations requires PlayAnimObject.", this);
@@ -85,23 +76,11 @@ public class PlayAnimations : MonoBehaviour
             return;
         }
 
-        if (fade && fader != null)
-        {
-            fader.isFading = true;
-            fader.isRendering = true;
-        }
-
         targetState.speed = animSpeed;
         LogFlow($"Validated clip '{animName}'. speed={animSpeed}, delay={animDelay}, delayTime={animDelayTime}");
 
         if (animDelay)
         {
-            if (delayedPlayCoroutine != null)
-            {
-                StopCoroutine(delayedPlayCoroutine);
-                LogFlow("Existing delayed coroutine stopped before starting new one.");
-            }
-
             delayedPlayCoroutine = StartCoroutine(WaitBeforeAnimation());
             LogFlow("Delayed play coroutine started.");
         }
@@ -113,7 +92,14 @@ public class PlayAnimations : MonoBehaviour
 
     private IEnumerator WaitBeforeAnimation()
     {
-        yield return new WaitForSeconds(animDelayTime);
+        if (useUnscaledDelay)
+        {
+            yield return new WaitForSecondsRealtime(animDelayTime);
+        }
+        else
+        {
+            yield return new WaitForSeconds(animDelayTime);
+        }
         LogFlow("Delay finished. Attempting to play animation now.");
 
         if (targetAnimation == null)
@@ -168,6 +154,23 @@ public class PlayAnimations : MonoBehaviour
         }
 
         LogFlow("Animation played, but no AnimationEvent component on this GameObject.");
+    }
+
+    private void OnDisable()
+    {
+        StopDelayedCoroutine();
+    }
+
+    private void StopDelayedCoroutine()
+    {
+        if (delayedPlayCoroutine == null)
+        {
+            return;
+        }
+
+        StopCoroutine(delayedPlayCoroutine);
+        delayedPlayCoroutine = null;
+        LogFlow("Existing delayed coroutine stopped.");
     }
 
     private void LogFlow(string message)

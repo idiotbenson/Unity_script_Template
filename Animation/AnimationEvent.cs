@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Serialization;
 
@@ -13,21 +13,25 @@ public class AnimationEvent : MonoBehaviour
 
     private void Reset()
     {
+        EnsureEventInitialized();
         CacheAudioSourceIfMissing();
     }
 
     private void OnValidate()
     {
+        EnsureEventInitialized();
         CacheAudioSourceIfMissing();
     }
 
     private void Awake()
     {
+        EnsureEventInitialized();
         CacheAudioSourceIfMissing();
     }
 
     public void InvokeAnimEvent()
     {
+        EnsureEventInitialized();
         if (animEvent == null && verboseLog)
         {
             Debug.LogWarning("AnimationEvent has no UnityEvent bindings.", this);
@@ -42,6 +46,7 @@ public class AnimationEvent : MonoBehaviour
 
     public void PlaySound(AudioClip clip)
     {
+        CacheAudioSourceIfMissing();
         if (clip == null)
         {
             if (verboseLog)
@@ -69,6 +74,12 @@ public class AnimationEvent : MonoBehaviour
         }
     }
 
+    public void InvokeAnimEventAndPlaySound(AudioClip clip)
+    {
+        InvokeAnimEvent();
+        PlaySound(clip);
+    }
+
     private void CacheAudioSourceIfMissing()
     {
         if (audioSource != null)
@@ -77,5 +88,10 @@ public class AnimationEvent : MonoBehaviour
         }
 
         TryGetComponent(out audioSource);
+    }
+
+    private void EnsureEventInitialized()
+    {
+        animEvent ??= new UnityEvent();
     }
 }
